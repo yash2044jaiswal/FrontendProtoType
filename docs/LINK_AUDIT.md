@@ -1,0 +1,287 @@
+# Link audit
+
+Original screens contain 869 `href="#"` / `javascript:void(0)` placeholder links (the source never linked them).
+The converter rewired **668** of the 906 placeholder-or-absolute links to real React Router routes by matching the link label / `data-path` (e.g. "Review Queue" → `/admin/review`, "Sign Out" → demo logout).
+**238** could not be matched to any of the 43 screens and are left as inert anchors (`preventDefault`, no navigation). Most frequent labels:
+
+- ai queue ×10
+- explore ×7
+- bharati station69°s antarctic ×5
+- maitri station70°s antarctic ×5
+- indarc observatorykongsfjorden ×5
+- dakshin gangotriice shelf base ×5
+- atmospheric & cryosphere archives ×5
+- moes terms of use ×5
+- grievances (cpgrams) ×5
+- rti disclosures ×5
+- privacy policy ×4
+- polarisncpormoes • govt. of india ×4
+- docs ×4
+- polarisncpor · moes · govt. of india ×3
+- cryosphere & climate science ×3
+- marine geophysics & deep-sea coring ×3
+- atmospheric & space physics ×3
+- school & university open curricula ×3
+- moes portal ×3
+- antarctic operations & science ×3
+- southern ocean paleoclimatology ×3
+- polarisncpor • moes • govt. of india ×3
+- cryosphere & climate evolution ×3
+- polar environment & ecosystems ×3
+- palaeoclimate & ice core analytics ×3
+- deep ocean mission studies ×3
+- schools & stem curricula ×3
+- open ocean fellowships ×3
+- public lecture schedules ×3
+- terms ×3
+- privacy ×3
+- rti ×3
+- more ×2
+- himalayan cryosphere observatory ×2
+- arctic environment & cryosphere ×2
+- himalayan cryosphere observatories ×2
+- ocean drilling & deep sea exploration ×2
+- antarctic treaty system & protocol ×2
+- environmental protection guidelines ×2
+- student fellowship & polar school ×2
+
+Full list (route, label):
+
+- `/` — More
+- `/` — Southern Ocean diatom sediment core imagery PHOTO
+- `/` — Review Queue →
+- `/` — See full details
+- `/` — Southern Ocean Investigating the global carbon pump, Antarct
+- `/` — Himalayas Cryospheric mass balance and glacier melt discharg
+- `/` — Download PDF Brief
+- `/` — Start 5-Minute Student Quiz
+- `/about/accessibility` — POLARISNCPOR · MoES · Govt. of India
+- `/about/accessibility` — Cryosphere & Climate Science
+- `/about/accessibility` — Marine Geophysics & Deep-Sea Coring
+- `/about/accessibility` — Atmospheric & Space Physics
+- `/about/accessibility` — School & University Open Curricula
+- `/about/accessibility` — Privacy Policy
+- `/about/accessibility` — MoES Portal
+- `/ask` — POLARISNCPORMoES • Govt. of India
+- `/ask` — Export PDF Citation Brief
+- `/auth` — Antarctic Cryosphere & Climate
+- `/auth` — Arctic Environment & Svalbard Basin
+- `/auth` — Himalayan Cryosphere Observatory
+- `/auth` — Polar Deep-Sea Coring Facility
+- `/auth` — Student Fellowship & Winter Schools
+- `/auth` — Right to Information (RTI)
+- `/auth` — Terms of Use & Disclaimers
+- `/data` — POLARISNCPORMoES • Govt. of India
+- `/data` — Micro-Meteorology at Pod 4 Boundary layer turbulence logging
+- `/datasets/katabatic-wind-dynamics` — Cryosphere & Atmosphere
+- `/datasets/katabatic-wind-dynamics` — Read Paper
+- `/datasets/katabatic-wind-dynamics` — Antarctic Operations & Science
+- `/datasets/katabatic-wind-dynamics` — Arctic Environment & Cryosphere
+- `/datasets/katabatic-wind-dynamics` — Southern Ocean Paleoclimatology
+- `/datasets/katabatic-wind-dynamics` — Himalayan Cryosphere Observatories
+- `/datasets/katabatic-wind-dynamics` — Ocean Drilling & Deep Sea Exploration
+- `/datasets/katabatic-wind-dynamics` — Antarctic Treaty System & Protocol
+- `/datasets/katabatic-wind-dynamics` — Environmental Protection Guidelines
+- `/datasets/katabatic-wind-dynamics` — Student Fellowship & Polar School
+- `/datasets/katabatic-wind-dynamics` — Right to Information (RTI) Cell
+- `/expeditions/soe-01` — Southern Ocean
+- `/expeditions/soe-01` — View Full Vessel Log (PDF)
+- `/expeditions/soe-01` — View all 20 assets
+- `/expeditions/soe-01` — Explore Raw Video Archive (H.264 Master)
+- `/expeditions/soe-01` — View Observatory
+- `/expeditions/soe-01` — Bharati Station69°S Antarctic
+- `/expeditions/soe-01` — Maitri Station70°S Antarctic
+- `/expeditions/soe-01` — IndARC ObservatoryKongsfjorden
+- `/expeditions/soe-01` — Dakshin GangotriIce Shelf Base
+- `/expeditions/soe-01` — Atmospheric & Cryosphere Archives
+- `/expeditions/soe-01` — MoES Terms of Use
+- `/expeditions/soe-01` — Grievances (CPGRAMS)
+- `/expeditions/soe-01` — RTI Disclosures
+- `/globe` — Open PDF ↗
+- `/globe` — Technical Cruise Log Vol 1, p.48 ↗
+- `/live/soe-01` — POLARISNCPOR • MoES • GOVT. OF INDIA
+- `/live/soe-01` — Cryosphere & Climate Evolution
+- `/live/soe-01` — Polar Environment & Ecosystems
+- `/live/soe-01` — Palaeoclimate & Ice Core Analytics
+- `/live/soe-01` — Deep Ocean Mission Studies
+- `/live/soe-01` — Schools & STEM Curricula
+- `/live/soe-01` — Open Ocean Fellowships
+- `/live/soe-01` — Public Lecture Schedules
+- `/live/soe-01` — Terms
+- `/live/soe-01` — Privacy
+- `/live/soe-01` — RTI
+- `/account` — User Portal
+- `/account` — Profile & Security
+- `/account` — Public Badges Portfolio
+- `/account` — Resume Quiz →
+- `/account` — Antarctic Operations & Science
+- `/account` — Arctic Environmental Studies
+- `/account` — Himalayan Cryosphere Observatory
+- `/account` — Southern Ocean Paleoclimatology
+- `/account` — Polar Deep-Sea Geosciences
+- `/account` — Maitri (Antarctica)ONLINE
+- `/account` — Bharati (Larsemann Hills)ONLINE
+- `/account` — Himansh (Spiti, Himalaya)ONLINE
+- `/account` — IndARC Mooring (Kongsfjorden)LOGGING
+- `/account` — Antarctic Treaty Environmental Audit
+- `/account` — Privacy Policy
+- `/account` — Site Map
+- `/community` — POLARISNCPORMoES • Govt. of India
+- `/media` — Browse Complete 340 Video Records
+- `/media` — Bharati Station69°S Antarctic
+- `/media` — Maitri Station70°S Antarctic
+- `/media` — IndARC ObservatoryKongsfjorden
+- `/media` — Dakshin GangotriIce Shelf Base
+- `/media` — Atmospheric & Cryosphere Archives
+- `/media` — MoES Terms of Use
+- `/media` — Grievances (CPGRAMS)
+- `/media` — RTI Disclosures
+- `/education` — POLARISNCPORMoES • Govt. of India
+- `/education` — Ask an Expert
+- `/education` — Explore
+- `/education` — Explore
+- `/education` — Explore
+- `/education` — Explore
+- `/education` — Explore
+- `/education` — Open Full Polar Scientific Dictionary (140+ Terms)
+- `/education` — Satellite Telemetry Visualizer
+- `/education` — School Curriculum Kits & Modules
+- `/graph` — POLARISNCPOR • MoES • GOVT. OF INDIA
+- `/graph` — Cryosphere & Climate Evolution
+- `/graph` — Polar Environment & Ecosystems
+- `/graph` — Palaeoclimate & Ice Core Analytics
+- `/graph` — Deep Ocean Mission Studies
+- `/graph` — Schools & STEM Curricula
+- `/graph` — Open Ocean Fellowships
+- `/graph` — Public Lecture Schedules
+- `/graph` — Terms
+- `/graph` — Privacy
+- `/graph` — RTI
+- `/repository` — "Himalayan glacier mass balance Siachen"
+- `/repository` — 10.5194/tc-2024-88
+- `/repository` — View
+- `/repository` — Download
+- `/repository` — Explore
+- `/repository` — Bharati Station69°S Antarctic
+- `/repository` — Maitri Station70°S Antarctic
+- `/repository` — IndARC ObservatoryKongsfjorden
+- `/repository` — Dakshin GangotriIce Shelf Base
+- `/repository` — Atmospheric & Cryosphere Archives
+- `/repository` — MoES Terms of Use
+- `/repository` — Grievances (CPGRAMS)
+- `/repository` — RTI Disclosures
+- `/style-guide` — More
+- `/style-guide` — Read Dossier
+- `/style-guide` — Maitri (Antarctica • 1989)
+- `/style-guide` — Bharati (Antarctica • 2012)
+- `/style-guide` — IndARC (Kongsfjorden Mooring)
+- `/style-guide` — Himansh (Himalaya • Spiti)
+- `/style-guide` — Indian Antarctic Program
+- `/style-guide` — Cryosphere & Climate Studies
+- `/style-guide` — Deep Ocean Mission
+- `/publications` — POLARISNCPOR • MoES • GOVT. OF INDIA
+- `/publications` — #BoundaryLayer
+- `/publications` — #MaitriStation
+- `/publications` — #SonicAnemometry
+- `/publications` — #TurbulentSensibleHeat
+- `/publications` — Open in Digital Library
+- `/publications` — Explore all archival dossiers
+- `/publications` — Cryosphere & Climate Evolution
+- `/publications` — Polar Environment & Ecosystems
+- `/publications` — Palaeoclimate & Ice Core Analytics
+- `/publications` — Deep Ocean Mission Studies
+- `/publications` — Schools & STEM Curricula
+- `/publications` — Open Ocean Fellowships
+- `/publications` — Public Lecture Schedules
+- `/publications` — Terms
+- `/publications` — Privacy
+- `/publications` — RTI
+- `/base-stations/himadri` — Stations
+- `/base-stations/himadri` — ARCHIVE (2008–24) →
+- `/base-stations/himadri` — Antarctic Operations & Science
+- `/base-stations/himadri` — Arctic Environment & Cryosphere
+- `/base-stations/himadri` — Southern Ocean Paleoclimatology
+- `/base-stations/himadri` — Himalayan Cryosphere Observatories
+- `/base-stations/himadri` — Ocean Drilling & Deep Sea Exploration
+- `/base-stations/himadri` — Antarctic Treaty System & Protocol
+- `/base-stations/himadri` — Environmental Protection Guidelines
+- `/base-stations/himadri` — Student Fellowship & Polar School
+- `/base-stations/himadri` — Right to Information (RTI) Cell
+- `/resources/ncpor-tr-2024-08` — Open in NPDC
+- `/resources/ncpor-tr-2024-08` — Jump to Page 12, §3.2
+- `/resources/ncpor-tr-2024-08` — Jump to Page 26, Fig 6
+- `/resources/ncpor-tr-2024-08` — Jump to Page 34, Table 2
+- `/resources/ncpor-tr-2024-08` — Jump to Page 41, §5.1
+- `/resources/ncpor-tr-2024-08` — View Paper
+- `/resources/ncpor-tr-2024-08` — Explore
+- `/resources/ncpor-tr-2024-08` — Contact Principal Investigator
+- `/resources/ncpor-tr-2024-08` — Bharati Station69°S Antarctic
+- `/resources/ncpor-tr-2024-08` — Maitri Station70°S Antarctic
+- `/resources/ncpor-tr-2024-08` — IndARC ObservatoryKongsfjorden
+- `/resources/ncpor-tr-2024-08` — Dakshin GangotriIce Shelf Base
+- `/resources/ncpor-tr-2024-08` — Atmospheric & Cryosphere Archives
+- `/resources/ncpor-tr-2024-08` — MoES Terms of Use
+- `/resources/ncpor-tr-2024-08` — Grievances (CPGRAMS)
+- `/resources/ncpor-tr-2024-08` — RTI Disclosures
+- `/people/ananya-sen` — POLARISNCPOR · MoES · Govt. of India
+- `/people/ananya-sen` — Cryosphere & Climate Science
+- `/people/ananya-sen` — Marine Geophysics & Deep-Sea Coring
+- `/people/ananya-sen` — Atmospheric & Space Physics
+- `/people/ananya-sen` — School & University Open Curricula
+- `/people/ananya-sen` — Privacy Policy
+- `/people/ananya-sen` — MoES Portal
+- `/search` — POLARISNCPOR · MoES · Govt. of India
+- `/search` — Open in Full AI Chat (/ask)
+- `/search` — Maitri High-Rate Sonic Anemometer 10Hz Wind Velocity Time-Se
+- `/search` — Cryosphere & Climate Science
+- `/search` — Marine Geophysics & Deep-Sea Coring
+- `/search` — Atmospheric & Space Physics
+- `/search` — School & University Open Curricula
+- `/search` — Privacy Policy
+- `/search` — MoES Portal
+- `/stories/overwintering-in-the-schirmacher-oasis` — POLARISNCPOR • MOES INDIA
+- `/stories/overwintering-in-the-schirmacher-oasis` — Bharati (Antarctica)69°24′S 76°11′E
+- `/stories/overwintering-in-the-schirmacher-oasis` — Maitri (Antarctica)70°46′S 11°44′E
+- `/stories/overwintering-in-the-schirmacher-oasis` — IndARC (Kongsfjorden Fjord)Moored Subsurface
+- `/stories/overwintering-in-the-schirmacher-oasis` — Polar Fellowship Programs
+- `/stories/overwintering-in-the-schirmacher-oasis` — Scientific Bulletins & Ice Radar Logs
+- `/timeline` — Bharati Station69°S Antarctic
+- `/timeline` — Maitri Station70°S Antarctic
+- `/timeline` — IndARC ObservatoryKongsfjorden
+- `/timeline` — Dakshin GangotriIce Shelf Base
+- `/timeline` — Atmospheric & Cryosphere Archives
+- `/timeline` — MoES Terms of Use
+- `/timeline` — Grievances (CPGRAMS)
+- `/timeline` — RTI Disclosures
+- `/admin/login` — My Submissions 3
+- `/admin/login` — Field Log Editor
+- `/admin/login` — Support & Docs
+- `/admin/login` — Resume Draft →
+- `/admin/login` — 3. Upload
+- `/admin/login` — 4. AI Processing
+- `/admin/login` — 5. Content Studio
+- `/admin/login` — 6. Review 5
+- `/admin/login` — 7. Publishing
+- `/admin/login` — 8. Rights
+- `/admin/login` — 9. Integrations
+- `/admin/login` — 10. Analytics
+- `/admin/login` — 11. Users
+- `/admin/login` — 12. Audit
+- `/admin/studio` — Docs
+- `/admin/studio` — Exit
+- `/admin/review` — Docs
+- `/admin/review` — Exit
+- `/admin/publishing` — Docs
+- `/admin/rights` — Docs
+- `/admin/content` — AI Queue
+- `/admin/media` — AI Queue
+- `/admin/tags` — AI Queue
+- `/admin/translation` — AI Queue
+- `/admin/education` — AI Queue
+- `/admin/events-inbox` — AI Queue
+- `/admin/social` — AI Queue
+- `/admin/field-diary` — AI Queue
+- `/admin/notifications` — AI Queue
+- `/admin/profile` — AI Queue
+- `/admin/profile` — 
+- `/admin/profile` — SOP Reference Desk
