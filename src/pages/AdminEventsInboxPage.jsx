@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react_router_dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useLegacyPage } from '../lib/legacy';
 
 const BODY_CLASS = "bg-surface font-body-md text-on-surface antialiased";
