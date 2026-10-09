@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Photo } from '../../components/PolarScence.jsx';
+import { Photo } from '../../Components/PolarScence.jsx';
 import { useAuth } from '../../Auth/useAuth.jsx';
 
 /* =====================================================================
