@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Photo } from '../../components/PolarScence.jsx';
+import { Photo } from '../../Components/PolarScence.jsx';
 import { useAuth } from '../../Auth/useAuth.jsx'; // adjust folder case to match your project
 
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
