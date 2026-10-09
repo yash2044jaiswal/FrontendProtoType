@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* Dark mode toggle ke liye (data-theme="dark") */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* POLARIS design tokens (v4 mein config yahin CSS mein hoti hai) */
+@theme {
+  --color-bg: #FFFFFF;
+  --color-band: #F6F9FC;
+  --color-line: #E3ECF3;
+  --color-ink: #0B1F3A;
+  --color-ink2: #4A5B6D;
+  --color-teal: #1F7A8C;
+  --color-teal-dark: #175F6E;
+  --color-ice: #BFE3F0;
+  --color-aurora: #2ECC9A;
+  --color-live: #F5A623;
+  --color-upcoming: #7C5CFF;
+  --color-danger: #D64545;
+
+  --font-serif: 'Merriweather', Georgia, serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  --radius-card: 16px;
+  --shadow-card: 0 6px 24px rgba(11, 31, 58, 0.06);
+  --container-page: 1240px;
+}
+
+body {
+  background: #fff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible { outline: 2px solid var(--color-teal); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
