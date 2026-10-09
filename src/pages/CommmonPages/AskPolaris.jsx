@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Photo } from '../../components/PolarScence.jsx';
+import { Photo } from '../../Components/PolarScence.jsx';
 
 // SAMPLE knowledge base. Replace with real reports; only the Southern Ocean 2006 report is a real record.
 const KB = [
