@@ -72,6 +72,7 @@ const ROLE = {
   user: 'Public user', contributor: 'Contributor', scientist: 'Scientist reviewer',
   editor: 'Communication Cell', admin: 'Administrator',
 };
+/* Bookmarks removed from the user nav */
 const NAV = {
   user: [
     ['overview', 'Overview', 'home'],
@@ -79,7 +80,6 @@ const NAV = {
     ['notes', 'My notes', 'file'],
     ['questions', 'My questions', 'message'],
     ['interests', 'My interests', 'star'],
-    ['bookmarks', 'Bookmarks', 'bookmark'],
     ['profile', 'Profile', 'user'],
   ],
   contributor: [
@@ -142,6 +142,15 @@ const RESEARCH = [
   { id: 'polar-fieldwork', title: 'Polar Fieldwork Diaries', topic: 'Fieldwork', date: '2024-05-18', read: 31, kind: 'station', excerpt: 'Notes from scientists living on the ice: logistics, drills, and daily life.' },
 ];
 
+/* Short guide shown on every overview */
+const ROLE_HELP = {
+  user: 'Read research, save notes on any page, ask the AI, and send tough questions to a scientist. Everything you save stays in this dashboard and on this device.',
+  contributor: 'Write expedition stories and reports, attach photos, videos or PDFs, and submit them to a scientist for review. Track every submission here.',
+  scientist: 'Check submissions for scientific accuracy, answer questions that the AI could not, and upload research data for the team.',
+  editor: 'Publish content that scientists approved, keep the library tidy and watch how readers use POLARIS.',
+  admin: 'Manage users and roles, control all content, watch platform health and review the audit log. Use “Preview as” to see any role.',
+};
+
 /* Seed data uses the demo account emails so the demo roles own their items */
 const SEED_DRAFTS = [
   { id: 1, title: 'Krill swarm survey, leg 2', body: 'Acoustic transects show dense swarms near the ice edge. Preliminary biomass estimates suggest a 12% increase relative to last season, though weather limited the final transect.', by: 'contributor@polaris.demo', status: 'review', time: Date.now() - DAY },
@@ -199,9 +208,14 @@ const noteKeys = () => {
   try { return Object.keys(localStorage).filter((k) => k.startsWith('polaris_note_') && ls.get(k, '')); }
   catch { return []; }
 };
+const reactKeys = () => {
+  try { return Object.keys(localStorage).filter((k) => k.startsWith('polaris_react_') && ls.get(k, null)); }
+  catch { return []; }
+};
 const pretty = (id) => id.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
 const fileSize = (b) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`;
 const mediaIcon = (type) => type?.startsWith('image') ? 'image' : type?.startsWith('video') ? 'video' : type === 'application/pdf' ? 'pdf' : 'file';
+const words = (s) => String(s || '').split(/\s+/).filter(Boolean).length;
 
 /* =====================================================================
    UI PRIMITIVES
@@ -242,8 +256,52 @@ const Stat = ({ label, value, icon, n = 0, tone = 'ink' }) => (
   </div>
 );
 
+/* Two summary cards shown at the top of a section page */
+const TONES = ['ink', 'warm', 'emerald'];
+const MiniStats = ({ items }) => (
+  <div className={`grid gap-4 sm:grid-cols-2 ${items.length > 2 ? 'lg:grid-cols-3' : ''}`}>
+    {items.map(([label, value, icon], n) => <Stat key={label} label={label} value={value} icon={icon} n={n} tone={TONES[n % 3]} />)}
+  </div>
+);
+
+/* Simple data table (cols = header labels, rows = arrays of cell nodes) */
+const Table = ({ cols, rows, empty = 'Nothing to show yet.', icon = 'folder' }) => rows.length ? (
+  <div className="overflow-x-auto">
+    <table className="w-full min-w-[560px] text-left text-sm">
+      <thead className="text-xs uppercase tracking-wider text-neutral-500">
+        <tr>{cols.map((c) => <th key={c} className="py-2 pr-3 font-semibold">{c}</th>)}</tr>
+      </thead>
+      <tbody>
+        {rows.map((r, i) => (
+          <tr key={i} className="border-t border-neutral-200 transition-colors hover:bg-neutral-50">
+            {r.map((c, j) => <td key={j} className="py-2.5 pr-3 align-middle text-neutral-800">{c}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+) : <Empty icon={icon}>{empty}</Empty>;
+
+/* Small highlight card (soft tinted background, one action) */
+const TINT = {
+  rose: 'border-red-100 bg-red-50',
+  sky: 'border-sky-100 bg-sky-50',
+  amber: 'border-amber-100 bg-amber-50',
+  green: 'border-emerald-100 bg-emerald-50',
+};
+const Tip = ({ tone = 'sky', icon, title, text, action, onClick }) => (
+  <div className={`flex flex-col rounded-card border p-4 ${TINT[tone]}`}>
+    <span className="grid h-9 w-9 place-items-center rounded-lg bg-white text-ink shadow-sm"><Icon n={icon} className="h-4 w-4" /></span>
+    <h3 className="mt-3 font-serif text-base font-black text-ink">{title}</h3>
+    <p className="mt-1 flex-1 text-sm text-neutral-700">{text}</p>
+    <button type="button" onClick={onClick} className={`${btnGhost} mt-3 self-start`}>
+      {action}<Icon n="chevron" className="h-3.5 w-3.5" />
+    </button>
+  </div>
+);
+
 /* =====================================================================
-   CHARTS (pure inline SVG)
+   CHARTS (pure inline SVG / CSS, no package needed)
 ===================================================================== */
 function Line({ data, height = 180, showArea = true }) {
   const gid = useRef(`g${Math.random().toString(36).slice(2, 8)}`).current;
@@ -298,8 +356,30 @@ function Bars({ data, suffix = '' }) {
   );
 }
 
+/* Vertical bar chart */
+function VBars({ data }) {
+  const max = Math.max(...data.map((d) => d[1]), 1);
+  return (
+    <div role="img" aria-label="Bar chart">
+      <div className="flex h-44 items-end gap-3 border-b border-neutral-300 px-1">
+        {data.map(([l, v]) => (
+          <div key={l} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+            <span className="text-xs font-semibold text-ink">{v}</span>
+            <div className="w-full max-w-[44px] rounded-t-md bg-ink transition-all duration-700"
+              style={{ height: `${Math.max((v / max) * 80, 2)}%` }} />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1.5 flex gap-3 px-1">
+        {data.map(([l]) => <span key={l} className="flex-1 truncate text-center text-[11px] text-neutral-500" title={l}>{l}</span>)}
+      </div>
+    </div>
+  );
+}
+
 function Donut({ data, size = 150, label = 'total' }) {
-  const total = data.reduce((a, d) => a + d[1], 0) || 1;
+  const sum = data.reduce((a, d) => a + d[1], 0);
+  const total = sum || 1;
   const r = 60, c = 2 * Math.PI * r;
   let acc = 0;
   const COLORS = ['#0B1F3A', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -317,7 +397,7 @@ function Donut({ data, size = 150, label = 'total' }) {
               transform="rotate(-90 80 80)" strokeLinecap="butt" />
           );
         })}
-        <text x="80" y="80" textAnchor="middle" className="fill-ink font-serif" fontSize="24" fontWeight="900">{total}</text>
+        <text x="80" y="80" textAnchor="middle" className="fill-ink font-serif" fontSize="24" fontWeight="900">{sum}</text>
         <text x="80" y="98" textAnchor="middle" className="fill-neutral-500" fontSize="10" letterSpacing="1">{label.toUpperCase()}</text>
       </svg>
       <ul className="min-w-[140px] space-y-1.5 text-sm">
@@ -449,8 +529,14 @@ function MediaLibrary({ me, canDelete = false }) {
   });
   const remove = (id) => { setList((l) => l.filter((x) => x.id !== id)); audit(me.email, `Deleted media ${id}`); };
   const add = (m) => { setList((l) => [{ ...m, by: me.email }, ...l]); audit(me.email, `Uploaded ${m.name}`); };
+  const mineN = list.filter((m) => m.by === me.email).length;
   return (
     <>
+      <MiniStats items={[
+        ['Files in library', list.length, 'image'],
+        ['Uploaded by you', mineN, 'upload'],
+        ['Total size', fileSize(list.reduce((a, m) => a + (m.size || 0), 0)), 'folder'],
+      ]} />
       <Card title="Upload media" icon="upload"
         right={<span className="text-xs text-neutral-500">{list.length} file(s)</span>}>
         <MediaUploader onAdd={add} />
@@ -482,7 +568,9 @@ function MediaLibrary({ me, canDelete = false }) {
 }
 
 /* =====================================================================
-   OVERVIEW
+   OVERVIEW  (same layout for every role, different data per role)
+   1 stats · 2 profile + quick actions + guide · 3 bar + donut
+   4 table · 5 highlight cards · 6 activity + trending
 ===================================================================== */
 function Overview({ me, role, go }) {
   const [drafts] = useStore('polaris_drafts', SEED_DRAFTS);
@@ -493,13 +581,27 @@ function Overview({ me, role, go }) {
   const c = (s) => drafts.filter((d) => d.status === s).length;
   const mine = drafts.filter((d) => d.by === me.email);
   const pend = inbox.filter((q) => q.status === 'pending').length;
+  const done = inbox.length - pend;
+  const notesN = noteKeys().length;
+  const reactN = reactKeys().length;
+  const byStatus = (arr) => Object.entries(ST).map(([k, v]) => [v[0], arr.filter((d) => d.status === k).length]);
+  const byType = (arr) => [
+    ['Images', arr.filter((m) => m.type?.startsWith('image')).length],
+    ['Videos', arr.filter((m) => m.type?.startsWith('video')).length],
+    ['PDFs', arr.filter((m) => m.type === 'application/pdf').length],
+  ];
+
+  /* profile completeness (name + bio + language) */
+  const prof = ls.get(`polaris_profile_${me.email}`, null);
+  const filled = [me.name, prof?.bio, prof?.lang].filter(Boolean).length;
+  const pct = Math.round((filled / 3) * 100);
 
   const STATS = {
     user: [
-      ['Saved notes', noteKeys().length, 'file'],
+      ['Saved notes', notesN, 'file'],
       ['Questions asked', inbox.length, 'message'],
-      ['Answered', inbox.filter((q) => q.status === 'answered').length, 'check'],
-      ['Bookmarks', Object.keys(ls.get('polaris_bookmarks', {})).length, 'bookmark'],
+      ['Answered', done, 'check'],
+      ['Reactions', reactN, 'star'],
     ],
     contributor: [
       ['My drafts', mine.length, 'pencil'],
@@ -528,23 +630,127 @@ function Overview({ me, role, go }) {
   };
 
   const ACT = {
-    user: [['Explore research', '/repository', 'compass'], ['Ask POLARIS AI', '/ask', 'sparkle']],
+    user: [['Explore research', '/repository', 'compass'], ['Ask POLARIS AI', '/ask', 'sparkle'], ['Write a note', 'notes', 'file']],
     contributor: [['Write new draft', 'drafts', 'pencil'], ['Upload media', 'media', 'upload']],
     scientist: [['Review submissions', 'review', 'scope'], ['Upload research data', 'research', 'folder']],
     editor: [['Publish approved', 'publish', 'mega'], ['See analytics', 'analytics', 'chart']],
     admin: [['Manage users', 'users', 'users'], ['System & audit', 'system', 'shield']],
   };
 
+  /* Charts per role: [bar title, bar data, donut title, donut data, donut label] */
+  const CHART = {
+    user: ['Your activity', [['Notes', notesN], ['Questions', inbox.length], ['Answered', done], ['Reactions', reactN]],
+      'Question status', [['Waiting', pend], ['Answered', done]], 'questions'],
+    contributor: ['My drafts by status', byStatus(mine),
+      'My media', byType(media.filter((m) => m.by === me.email)), 'files'],
+    scientist: ['Review pipeline', byStatus(drafts),
+      'Question inbox', [['Open', pend], ['Answered', done]], 'questions'],
+    editor: ['Most read topics', TOPICS.map(([l, v]) => [l.split(' ')[0], v]),
+      'Content status', byStatus(drafts), 'items'],
+    admin: ['Users by role', Object.keys(ROLE).map((r) => [ROLE[r].split(' ')[0], users.filter((u) => u.role === r).length]),
+      'Content status', byStatus(drafts), 'items'],
+  }[role];
+
+  /* Table per role */
+  const TBL = {
+    user: {
+      title: 'Latest research', icon: 'compass', go: 'explore', cols: ['Title', 'Topic', 'Published', 'Reads', ''],
+      rows: RESEARCH.slice(0, 5).map((r) => [
+        <span className="font-semibold text-ink">{r.title}</span>, r.topic, r.date, r.read,
+        <Link to={`/research/${r.id}`} className={btnGhost}>Open</Link>,
+      ]),
+    },
+    contributor: {
+      title: 'My latest drafts', icon: 'pencil', go: 'drafts', cols: ['Title', 'Status', 'Updated', 'Attachments'],
+      rows: [...mine].sort((a, b) => b.time - a.time).slice(0, 5).map((d) => [
+        <span className="font-semibold text-ink">{d.title}</span>, <Badge s={d.status} />, rel(d.time), d.media?.length || 0,
+      ]),
+    },
+    scientist: {
+      title: 'Waiting for your review', icon: 'scope', go: 'review', cols: ['Title', 'Author', 'Status', 'Submitted'],
+      rows: drafts.filter((d) => d.status === 'review').slice(0, 5).map((d) => [
+        <span className="font-semibold text-ink">{d.title}</span>, d.by, <Badge s={d.status} />, rel(d.time),
+      ]),
+    },
+    editor: {
+      title: 'Publishing pipeline', icon: 'mega', go: 'publish', cols: ['Title', 'Author', 'Status', 'Updated'],
+      rows: drafts.filter((d) => d.status === 'approved' || d.status === 'published').slice(0, 5).map((d) => [
+        <span className="font-semibold text-ink">{d.title}</span>, d.by, <Badge s={d.status} />, rel(d.time),
+      ]),
+    },
+    admin: {
+      title: 'Recent users', icon: 'users', go: 'users', cols: ['Name', 'Email', 'Role', 'Joined', 'Status'],
+      rows: [...users].sort((a, b) => (b.joined || 0) - (a.joined || 0)).slice(0, 5).map((u) => [
+        <span className="font-semibold text-ink">{u.name}</span>, u.email, ROLE[u.role],
+        new Date(u.joined || Date.now()).toLocaleDateString('en-IN'),
+        <span className={`${chip} ${u.active ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-800'}`}>{u.active ? 'Active' : 'Suspended'}</span>,
+      ]),
+    },
+  }[role];
+
+  /* Highlight cards per role */
+  const TIPS = {
+    user: [
+      ['rose', 'compass', 'Keep exploring', 'Seven research pages are open to read. Pick a topic that interests you.', 'Explore research', 'explore'],
+      ['sky', 'file', 'Capture what you learn', 'Short notes make research easy to revisit. Add one now.', 'Add a note', 'notes'],
+      ['amber', 'message', 'Ask a scientist', 'Stuck on something? Send your question and a scientist will reply.', 'Ask a question', 'questions'],
+    ],
+    contributor: [
+      ['rose', 'pencil', 'Start a new story', 'Write up your latest fieldwork and attach photos or video.', 'New draft', 'drafts'],
+      ['sky', 'image', 'Your media', 'Keep field photos, videos and PDFs in one place.', 'Open library', 'media'],
+      ['amber', 'scope', 'Waiting for feedback', `${mine.filter((d) => d.status === 'review').length} item(s) are with a scientist right now.`, 'See drafts', 'drafts'],
+    ],
+    scientist: [
+      ['rose', 'scope', 'Review queue', `${c('review')} submission(s) need a scientific check.`, 'Open queue', 'review'],
+      ['sky', 'message', 'Questions inbox', `${pend} question(s) are waiting for an answer.`, 'Answer now', 'questions'],
+      ['amber', 'folder', 'Research data', 'Share datasets, logs and reports with the team.', 'Upload data', 'research'],
+    ],
+    editor: [
+      ['rose', 'mega', 'Ready to publish', `${c('approved')} approved item(s) can go live today.`, 'Publish queue', 'publish'],
+      ['sky', 'book', 'Content library', `${c('published')} item(s) are live. Unpublish or tidy up.`, 'Open library', 'library'],
+      ['amber', 'chart', 'Reader insights', 'See which topics readers love this week.', 'View analytics', 'analytics'],
+    ],
+    admin: [
+      ['rose', 'users', 'People & roles', `${users.filter((u) => !u.active).length} suspended · ${users.filter((u) => u.active).length} active.`, 'Manage users', 'users'],
+      ['sky', 'folder', 'All content', `${drafts.length} item(s) across every stage.`, 'Open content', 'content'],
+      ['amber', 'shield', 'Audit trail', 'Review every change made on the platform.', 'Open audit log', 'system'],
+    ],
+  }[role];
+
   const toneMap = { 0: 'ink', 1: 'warm', 2: 'emerald', 3: 'ink' };
 
   return (
     <>
+      {/* 1 · stats */}
       <div className={`grid gap-4 sm:grid-cols-2 ${STATS[role].length === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
         {STATS[role].map(([l, v, i], n) => <Stat key={l} label={l} value={v} icon={i} n={n} tone={toneMap[n % 4]} />)}
       </div>
 
+      {/* 2 · profile + quick actions + guide */}
       <div className="grid gap-5 lg:grid-cols-3">
-        <Card title="Quick actions" icon="sparkle" className="lg:col-span-1">
+        <Card title="Your profile" icon="user">
+          <div className="flex items-center gap-3">
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink font-serif text-xl font-black text-white">
+              {me.name[0]?.toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-ink">{me.name}</p>
+              <p className="truncate text-xs text-neutral-500">{me.email}</p>
+              <span className={`${chip} mt-1 bg-neutral-100 text-neutral-700`}>{ROLE[role]}</span>
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="flex justify-between text-xs text-neutral-600">
+              <span>Profile complete</span><span className="font-semibold text-ink">{pct}%</span>
+            </div>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-neutral-200">
+              <div className="h-full rounded-full bg-ink transition-all duration-700" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+          <button type="button" onClick={() => go('profile')} className={`${btnGhost} mt-4`}>Edit profile</button>
+        </Card>
+
+        <Card title="Quick actions" icon="sparkle">
           <div className="flex flex-wrap gap-2">
             {ACT[role].map(([l, t, ic]) => t.startsWith('/')
               ? <Link key={l} to={t} className={btn}><Icon n={ic} className="h-4 w-4" />{l}</Link>
@@ -553,43 +759,42 @@ function Overview({ me, role, go }) {
           </div>
         </Card>
 
-        {(role === 'editor' || role === 'admin') && (
-          <Card title="Visits this week" icon="chart" className="lg:col-span-2"
-            right={<span className="text-xs text-neutral-500">Sample data</span>}>
-            <Line data={VISITS} />
-          </Card>
-        )}
-
-        {role === 'user' && (
-          <Card title="How POLARIS works for you" icon="sparkle" className="lg:col-span-2">
-            <p className="text-sm leading-relaxed text-neutral-700">
-              Read research, save notes on any page, ask the AI, and send tough questions to a scientist.
-              Everything you save stays in this dashboard and on this device.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className={chip + ' bg-neutral-100 text-neutral-700'}>📄 Read</span>
-              <span className={chip + ' bg-neutral-100 text-neutral-700'}>✍️ Note</span>
-              <span className={chip + ' bg-neutral-100 text-neutral-700'}>💬 Ask</span>
-              <span className={chip + ' bg-neutral-100 text-neutral-700'}>⭐ React</span>
-            </div>
-          </Card>
-        )}
+        <Card title="How POLARIS works for you" icon="sparkle">
+          <p className="text-sm leading-relaxed text-neutral-700">{ROLE_HELP[role]}</p>
+        </Card>
       </div>
 
-      {role === 'admin' && (
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Card title="Content status" icon="folder">
-            <Donut label="items" data={[
-              ['Draft', c('draft')], ['In review', c('review')], ['Changes', c('changes')],
-              ['Approved', c('approved')], ['Published', c('published')],
-            ].filter(([, v]) => v > 0)} />
-          </Card>
-          <Card title="Users by role" icon="users">
-            <Donut label="users" data={Object.keys(ROLE).map((r) => [ROLE[r], users.filter((u) => u.role === r).length])} />
-          </Card>
-        </div>
+      {/* 3 · bar chart + donut */}
+      <div className="grid gap-5 lg:grid-cols-3">
+        <Card title={CHART[0]} icon="chart" className="lg:col-span-2"
+          right={role === 'editor' ? <span className="text-xs text-neutral-500">Sample data</span> : null}>
+          <VBars data={CHART[1]} />
+        </Card>
+        <Card title={CHART[2]} icon="folder">
+          <Donut data={CHART[3]} label={CHART[4]} />
+        </Card>
+      </div>
+
+      {(role === 'editor' || role === 'admin') && (
+        <Card title="Visits this week" icon="trend" right={<span className="text-xs text-neutral-500">Sample data</span>}>
+          <Line data={VISITS} />
+        </Card>
       )}
 
+      {/* 4 · table */}
+      <Card title={TBL.title} icon={TBL.icon}
+        right={<button type="button" onClick={() => go(TBL.go)} className={btnGhost}>View all</button>}>
+        <Table cols={TBL.cols} rows={TBL.rows} icon={TBL.icon} empty="Nothing here yet." />
+      </Card>
+
+      {/* 5 · highlight cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {TIPS.map(([tone, ic, t, x, a, g]) => (
+          <Tip key={t} tone={tone} icon={ic} title={t} text={x} action={a} onClick={() => go(g)} />
+        ))}
+      </div>
+
+      {/* 6 · activity + trending */}
       <div className="grid gap-5 lg:grid-cols-2">
         <Card title="Recent activity" icon="clock"
           right={<span className="text-xs text-neutral-500">latest 8</span>}>
@@ -628,135 +833,137 @@ function Overview({ me, role, go }) {
 function Explore() {
   const [topic, setTopic] = useState('all');
   const [q, setQ] = useState('');
-  const [saved, setSaved] = useStore('polaris_bookmarks', {});
   const topics = ['all', ...new Set(RESEARCH.map((r) => r.topic))];
   const list = RESEARCH.filter((r) =>
     (topic === 'all' || r.topic === topic) &&
     (r.title + r.excerpt).toLowerCase().includes(q.toLowerCase())
   );
-  const toggle = (id) => setSaved((s) => {
-    const n = { ...s };
-    if (n[id]) delete n[id]; else n[id] = Date.now();
-    return n;
-  });
   return (
-    <Card title="Explore research" icon="compass"
-      right={
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Icon n="search" className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search research…" className={`${inputCls} w-56 pl-8`} aria-label="Search research" />
+    <>
+      <MiniStats items={[
+        ['Research pages', RESEARCH.length, 'compass'],
+        ['Topics', topics.length - 1, 'filter'],
+        ['Total reads', RESEARCH.reduce((a, r) => a + r.read, 0), 'eye'],
+      ]} />
+      <Card title="Explore research" icon="compass"
+        right={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Icon n="search" className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search research…" className={`${inputCls} w-56 pl-8`} aria-label="Search research" />
+            </div>
+            <select value={topic} onChange={(e) => setTopic(e.target.value)} className={`${inputCls} w-44`} aria-label="Filter topic">
+              {topics.map((t) => <option key={t} value={t}>{t === 'all' ? 'All topics' : t}</option>)}
+            </select>
           </div>
-          <select value={topic} onChange={(e) => setTopic(e.target.value)} className={`${inputCls} w-44`} aria-label="Filter topic">
-            {topics.map((t) => <option key={t} value={t}>{t === 'all' ? 'All topics' : t}</option>)}
-          </select>
-        </div>
-      }>
-      {list.length ? (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {list.map((r) => (
-            <article key={r.id} className="group overflow-hidden rounded-card border border-neutral-200 bg-white shadow-card transition hover:-translate-y-0.5">
-              <div className="relative aspect-[16/10] overflow-hidden bg-ink">
-                <Photo kind={r.kind} className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-105" />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/20 to-transparent" />
-                <button type="button" onClick={() => toggle(r.id)}
-                  aria-label={saved[r.id] ? 'Remove bookmark' : 'Bookmark'}
-                  aria-pressed={!!saved[r.id]}
-                  className={`absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border backdrop-blur transition ${
-                    saved[r.id] ? 'border-white bg-white text-ink' : 'border-white/40 bg-white/10 text-white hover:bg-white/20'
-                  } ${focus}`}>
-                  <Icon n="bookmark" className="h-4 w-4" />
-                </button>
-                <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink">
-                  {r.topic}
-                </span>
-              </div>
-              <div className="p-4">
-                <h3 className="font-serif text-lg font-black text-ink">{r.title}</h3>
-                <p className="mt-1 line-clamp-2 text-sm text-neutral-600">{r.excerpt}</p>
-                <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
-                  <span className="inline-flex items-center gap-1"><Icon n="calendar" className="h-3.5 w-3.5" />{r.date}</span>
-                  <span className="inline-flex items-center gap-1"><Icon n="eye" className="h-3.5 w-3.5" />{r.read}</span>
+        }>
+        {list.length ? (
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {list.map((r) => (
+              <article key={r.id} className="group overflow-hidden rounded-card border border-neutral-200 bg-white shadow-card transition hover:-translate-y-0.5">
+                <div className="relative aspect-[16/10] overflow-hidden bg-ink">
+                  <Photo kind={r.kind} className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/20 to-transparent" />
+                  <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink">
+                    {r.topic}
+                  </span>
                 </div>
-                <Link to={`/research/${r.id}`} className={`${btn} mt-3 w-full`}>
-                  Open research <Icon n="chevron" className="h-4 w-4" />
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
-      ) : <Empty icon="compass">No research matches your search.</Empty>}
-    </Card>
+                <div className="p-4">
+                  <h3 className="font-serif text-lg font-black text-ink">{r.title}</h3>
+                  <p className="mt-1 line-clamp-2 text-sm text-neutral-600">{r.excerpt}</p>
+                  <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
+                    <span className="inline-flex items-center gap-1"><Icon n="calendar" className="h-3.5 w-3.5" />{r.date}</span>
+                    <span className="inline-flex items-center gap-1"><Icon n="eye" className="h-3.5 w-3.5" />{r.read}</span>
+                  </div>
+                  <Link to={`/research/${r.id}`} className={`${btn} mt-3 w-full`}>
+                    Open research <Icon n="chevron" className="h-4 w-4" />
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : <Empty icon="compass">No research matches your search.</Empty>}
+      </Card>
+    </>
   );
 }
 
 /* =====================================================================
-   NOTES / BOOKMARKS / INTERESTS
+   NOTES / INTERESTS
 ===================================================================== */
-function Notes() {
+function Notes({ me }) {
   const [keys, setKeys] = useState(noteKeys);
+  const [topic, setTopic] = useState(RESEARCH[0].id);
+  const [text, setText] = useState('');
+  const [msg, setMsg] = useState('');
   const del = (k) => { try { localStorage.removeItem(k); } catch { /* blocked */ } setKeys(noteKeys()); };
+  const save = () => {
+    const t = text.trim();
+    if (!t) return;
+    const k = `polaris_note_${topic}`;
+    const old = ls.get(k, '');
+    ls.set(k, old ? `${old}\n\n${t}` : t);
+    audit(me.email, `Saved note on ${pretty(topic)}`);
+    setText(''); setKeys(noteKeys());
+    setMsg('Note saved'); setTimeout(() => setMsg(''), 2000);
+  };
+  const totalWords = keys.reduce((a, k) => a + words(ls.get(k, '')), 0);
+  const latest = keys.length ? pretty(keys[0].replace('polaris_note_', '')) : '—';
   return (
-    <Card title="Saved notes" icon="file" right={<span className="text-xs text-neutral-500">{keys.length} note(s)</span>}>
-      {keys.length ? (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {keys.map((k) => {
-            const id = k.replace('polaris_note_', '');
-            return (
-              <li key={k} className="rounded-lg border border-neutral-200 p-4 transition hover:border-ink">
-                <p className="font-semibold text-ink">{pretty(id)}</p>
-                <p className="mt-1 line-clamp-4 whitespace-pre-wrap text-sm text-neutral-700">{ls.get(k, '')}</p>
-                <div className="mt-3 flex gap-2">
-                  <Link to={`/research/${id}`} className={btnGhost}><Icon n="eye" className="h-3.5 w-3.5" />Open</Link>
-                  <button type="button" onClick={() => del(k)} className={btnGhost}><Icon n="trash" className="h-3.5 w-3.5" />Delete</button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : <Empty icon="file">No notes yet. Open a research page, write a note and tap “Save note”.</Empty>}
-    </Card>
-  );
-}
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Stat label="Saved notes" value={keys.length} icon="file" />
+        <Stat label="Words written" value={totalWords} icon="pencil" tone="warm" n={1} />
+      </div>
 
-function Bookmarks() {
-  const [saved, setSaved] = useStore('polaris_bookmarks', {});
-  const ids = Object.keys(saved);
-  return (
-    <Card title="Bookmarks" icon="bookmark" right={<span className="text-xs text-neutral-500">{ids.length} saved</span>}>
-      {ids.length ? (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {ids.map((id) => {
-            const r = RESEARCH.find((x) => x.id === id);
-            if (!r) return null;
-            return (
-              <li key={id} className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-card">
-                <div className="relative aspect-video bg-ink">
-                  <Photo kind={r.kind} className="absolute inset-0 h-full w-full" />
-                </div>
-                <div className="p-3">
-                  <p className="font-semibold text-ink">{r.title}</p>
-                  <p className="mt-0.5 text-xs text-neutral-500">saved {rel(saved[id])}</p>
-                  <div className="mt-2 flex gap-2">
-                    <Link to={`/research/${r.id}`} className={btnGhost}>Open</Link>
-                    <button type="button" onClick={() => setSaved((s) => { const n = { ...s }; delete n[id]; return n; })} className={btnGhost}>Remove</button>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : <Empty icon="bookmark">No bookmarks yet. Tap the bookmark icon on any research card.</Empty>}
-    </Card>
+      <Card title="Saved notes" icon="file" right={<span className="text-xs text-neutral-500">Latest page: {latest}</span>}>
+        <Table icon="file" empty="No notes yet. Write one below or on any research page."
+          cols={['Research page', 'Note', 'Words', 'Actions']}
+          rows={keys.map((k) => {
+            const id = k.replace('polaris_note_', '');
+            const t = ls.get(k, '');
+            return [
+              <span className="font-semibold text-ink">{pretty(id)}</span>,
+              <span className="line-clamp-2 max-w-md whitespace-pre-wrap text-neutral-700">{t}</span>,
+              words(t),
+              <span className="flex gap-2">
+                <Link to={`/research/${id}`} className={btnGhost}><Icon n="eye" className="h-3.5 w-3.5" />Open</Link>
+                <button type="button" onClick={() => del(k)} className={btnGhost}><Icon n="trash" className="h-3.5 w-3.5" />Delete</button>
+              </span>,
+            ];
+          })} />
+      </Card>
+
+      <Card title="Add a note" icon="pencil">
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-ink">Research page
+            <select value={topic} onChange={(e) => setTopic(e.target.value)} className={`${inputCls} mt-1 font-normal sm:w-72`}>
+              {RESEARCH.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
+            </select>
+          </label>
+          <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} aria-label="Note text"
+            placeholder="What did you learn or want to remember?" className={inputCls} />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="mr-auto text-sm text-neutral-600" aria-live="polite">{msg}</span>
+            <button type="button" onClick={() => setText('')} className={btnGhost}>Clear</button>
+            <button type="button" onClick={save} disabled={!text.trim()} className={btn}><Icon n="check" className="h-4 w-4" />Save note</button>
+          </div>
+        </div>
+      </Card>
+    </>
   );
 }
 
 function Interests() {
   const it = ls.get('polaris_interest', {});
   const rows = Object.entries(it).sort((a, b) => b[1] - a[1]);
-  const reacts = (() => { try { return Object.keys(localStorage).filter((k) => k.startsWith('polaris_react_') && ls.get(k, null)); } catch { return []; } })();
+  const reacts = reactKeys();
   return (
     <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Stat label="Top interest" value={rows.length ? pretty(rows[0][0]) : '—'} icon="star" />
+        <Stat label="Pages reacted to" value={reacts.length} icon="eye" tone="warm" n={1} />
+      </div>
       <Card title="What you are curious about" icon="star">
         {rows.length
           ? <Bars data={rows.map(([t, v]) => [t[0].toUpperCase() + t.slice(1), v])} />
@@ -798,49 +1005,85 @@ function Questions({ role, me }) {
   const staff = role === 'scientist' || role === 'admin';
   const [inbox, setInbox] = useStore('polaris_inbox', SEED_INBOX);
   const [ans, setAns] = useState({});
+  const [nq, setNq] = useState({ page: RESEARCH[0].id, text: '' });
   const patch = (id, p, msg) => {
     setInbox((l) => l.map((q) => (q.id === id ? { ...q, ...p } : q)));
     if (msg) audit(me.email, msg);
   };
+  const ask = () => {
+    const t = nq.text.trim();
+    if (!t) return;
+    const r = RESEARCH.find((x) => x.id === nq.page);
+    setInbox((l) => [{ id: Date.now(), card: r.id, title: r.title, q: t, reason: 'Asked from dashboard', status: 'pending', by: me.email }, ...l]);
+    audit(me.email, `Asked a question on ${r.title}`);
+    setNq({ ...nq, text: '' });
+  };
+  const open = inbox.filter((q) => q.status === 'pending').length;
   const list = [...inbox].sort((a, b) => (a.status === 'pending' ? -1 : 1) - (b.status === 'pending' ? -1 : 1));
   return (
-    <Card title={staff ? 'Questions inbox' : 'My questions'} icon="message"
-      right={<span className="text-xs text-neutral-500">{inbox.filter((q) => q.status === 'pending').length} open</span>}>
-      {list.length ? (
-        <ul className="space-y-3">
-          {list.map((q) => (
-            <li key={q.id} className="rounded-lg border border-neutral-200 p-4">
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className={`${chip} ${q.status === 'answered' ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'}`}>
-                  {q.status === 'answered' ? 'Answered' : 'Waiting for scientist'}
-                </span>
-                {q.idea && <span className={`${chip} bg-violet-100 text-violet-900`}>Research idea</span>}
-                <span className="text-neutral-500">on {q.title} · {q.reason}</span>
-              </div>
-              <p className="mt-2 font-semibold text-ink">“{q.q}”</p>
-              {q.answer && (
-                <p className="mt-2 rounded-lg bg-neutral-100 p-3 text-sm text-neutral-800">
-                  <strong>Scientist:</strong> {q.answer}
-                </p>
-              )}
-              {staff && q.status === 'pending' && (
-                <div className="mt-3 space-y-2">
-                  <textarea value={ans[q.id] || ''} onChange={(e) => setAns({ ...ans, [q.id]: e.target.value })}
-                    rows={3} placeholder="Write your answer…" aria-label="Your answer" className={inputCls} />
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" disabled={!(ans[q.id] || '').trim()}
-                      onClick={() => patch(q.id, { status: 'answered', answer: ans[q.id].trim() }, `Answered #${q.id}`)}
-                      className={btn}><Icon n="check" className="h-4 w-4" />Send answer</button>
-                    <button type="button" onClick={() => patch(q.id, { idea: !q.idea }, `${q.idea ? 'Unmarked' : 'Marked'} research idea #${q.id}`)}
-                      className={btnGhost}>{q.idea ? 'Unmark idea' : 'Mark as research idea'}</button>
-                  </div>
+    <>
+      <MiniStats items={[
+        ['Waiting for scientist', open, 'clock'],
+        ['Answered', inbox.length - open, 'check'],
+        ...(staff ? [['Research ideas', inbox.filter((q) => q.idea).length, 'star']] : []),
+      ]} />
+
+      <Card title={staff ? 'Questions inbox' : 'My questions'} icon="message"
+        right={<span className="text-xs text-neutral-500">{open} open</span>}>
+        {list.length ? (
+          <ul className="space-y-3">
+            {list.map((q) => (
+              <li key={q.id} className="rounded-lg border border-neutral-200 p-4">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className={`${chip} ${q.status === 'answered' ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'}`}>
+                    {q.status === 'answered' ? 'Answered' : 'Waiting for scientist'}
+                  </span>
+                  {q.idea && <span className={`${chip} bg-violet-100 text-violet-900`}>Research idea</span>}
+                  <span className="text-neutral-500">on {q.title} · {q.reason}</span>
                 </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : <Empty icon="message">{staff ? 'No questions right now.' : 'Questions you send to scientists appear here with their answers.'}</Empty>}
-    </Card>
+                <p className="mt-2 font-semibold text-ink">“{q.q}”</p>
+                {q.answer && (
+                  <p className="mt-2 rounded-lg bg-neutral-100 p-3 text-sm text-neutral-800">
+                    <strong>Scientist:</strong> {q.answer}
+                  </p>
+                )}
+                {staff && q.status === 'pending' && (
+                  <div className="mt-3 space-y-2">
+                    <textarea value={ans[q.id] || ''} onChange={(e) => setAns({ ...ans, [q.id]: e.target.value })}
+                      rows={3} placeholder="Write your answer…" aria-label="Your answer" className={inputCls} />
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" disabled={!(ans[q.id] || '').trim()}
+                        onClick={() => patch(q.id, { status: 'answered', answer: ans[q.id].trim() }, `Answered #${q.id}`)}
+                        className={btn}><Icon n="check" className="h-4 w-4" />Send answer</button>
+                      <button type="button" onClick={() => patch(q.id, { idea: !q.idea }, `${q.idea ? 'Unmarked' : 'Marked'} research idea #${q.id}`)}
+                        className={btnGhost}>{q.idea ? 'Unmark idea' : 'Mark as research idea'}</button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : <Empty icon="message">{staff ? 'No questions right now.' : 'Questions you send to scientists appear here with their answers.'}</Empty>}
+      </Card>
+
+      {!staff && (
+        <Card title="Ask a scientist" icon="pencil">
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-ink">About
+              <select value={nq.page} onChange={(e) => setNq({ ...nq, page: e.target.value })} className={`${inputCls} mt-1 font-normal sm:w-72`}>
+                {RESEARCH.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
+              </select>
+            </label>
+            <textarea rows={3} value={nq.text} onChange={(e) => setNq({ ...nq, text: e.target.value })} aria-label="Your question"
+              placeholder="Type your question…" className={inputCls} />
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setNq({ ...nq, text: '' })} className={btnGhost}>Clear</button>
+              <button type="button" onClick={ask} disabled={!nq.text.trim()} className={btn}><Icon n="message" className="h-4 w-4" />Send question</button>
+            </div>
+          </div>
+        </Card>
+      )}
+    </>
   );
 }
 
@@ -863,30 +1106,11 @@ function Drafts({ me }) {
   const del = (d) => { setDrafts((l) => l.filter((x) => x.id !== d.id)); audit(me.email, `Deleted “${d.title}”`); };
   return (
     <>
-      <Card title={f.id ? 'Edit draft' : 'New expedition story / report'} icon="pencil">
-        <div className="space-y-3">
-          <label className="block text-sm font-semibold text-ink">Title
-            <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} className={`${inputCls} mt-1 font-normal`} />
-          </label>
-          <label className="block text-sm font-semibold text-ink">Content
-            <textarea rows={6} value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} className={`${inputCls} mt-1 font-normal`} />
-          </label>
-          <div>
-            <p className="mb-2 text-sm font-semibold text-ink">Attachments</p>
-            <MediaUploader onAdd={(m) => setF((s) => ({ ...s, media: [...s.media, m] }))} hint="Add photos, video, or PDF" />
-            {f.media.length > 0 && (
-              <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {f.media.map((m) => <MediaCard key={m.id} m={m} onRemove={(id) => setF((s) => ({ ...s, media: s.media.filter((x) => x.id !== id) }))} />)}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => save('draft')} className={btnGhost}><Icon n="file" className="h-3.5 w-3.5" />Save draft</button>
-            <button type="button" onClick={() => save('review')} className={btn}><Icon n="scope" className="h-4 w-4" />Submit for review</button>
-            {f.id && <button type="button" onClick={reset} className={btnGhost}>Cancel</button>}
-          </div>
-        </div>
-      </Card>
+      <MiniStats items={[
+        ['My drafts', mine.length, 'pencil'],
+        ['In review', mine.filter((d) => d.status === 'review').length, 'scope'],
+        ['Published', mine.filter((d) => d.status === 'published').length, 'check'],
+      ]} />
 
       <Card title="My submissions" icon="folder" right={<span className="text-xs text-neutral-500">{mine.length} item(s)</span>}>
         {mine.length ? (
@@ -920,7 +1144,32 @@ function Drafts({ me }) {
               </li>
             ))}
           </ul>
-        ) : <Empty icon="pencil">No drafts yet. Write your first one above.</Empty>}
+        ) : <Empty icon="pencil">No drafts yet. Write your first one below.</Empty>}
+      </Card>
+
+      <Card title={f.id ? 'Edit draft' : 'New expedition story / report'} icon="pencil">
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-ink">Title
+            <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} className={`${inputCls} mt-1 font-normal`} />
+          </label>
+          <label className="block text-sm font-semibold text-ink">Content
+            <textarea rows={6} value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} className={`${inputCls} mt-1 font-normal`} />
+          </label>
+          <div>
+            <p className="mb-2 text-sm font-semibold text-ink">Attachments</p>
+            <MediaUploader onAdd={(m) => setF((s) => ({ ...s, media: [...s.media, m] }))} hint="Add photos, video, or PDF" />
+            {f.media.length > 0 && (
+              <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {f.media.map((m) => <MediaCard key={m.id} m={m} onRemove={(id) => setF((s) => ({ ...s, media: s.media.filter((x) => x.id !== id) }))} />)}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            {f.id && <button type="button" onClick={reset} className={btnGhost}>Cancel</button>}
+            <button type="button" onClick={() => save('draft')} className={btnGhost}><Icon n="file" className="h-3.5 w-3.5" />Save draft</button>
+            <button type="button" onClick={() => save('review')} className={btn}><Icon n="scope" className="h-4 w-4" />Submit for review</button>
+          </div>
+        </div>
       </Card>
     </>
   );
@@ -934,76 +1183,83 @@ function Queue({ mode, me }) {
   const [cm, setCm] = useState({});
   const [q, setQ] = useState('');
   const want = { review: 'review', publish: 'approved', library: 'published' }[mode];
-  const list = drafts
-    .filter((d) => d.status === want)
-    .filter((d) => (d.title + d.by).toLowerCase().includes(q.toLowerCase()));
+  const all = drafts.filter((d) => d.status === want);
+  const list = all.filter((d) => (d.title + d.by).toLowerCase().includes(q.toLowerCase()));
   const set = (d, p, msg) => { setDrafts((l) => l.map((x) => (x.id === d.id ? { ...x, ...p } : x))); audit(me.email, `${msg} “${d.title}”`); };
   const del = (d) => { setDrafts((l) => l.filter((x) => x.id !== d.id)); audit(me.email, `Deleted “${d.title}”`); };
   const T = { review: 'Review queue', publish: 'Ready to publish', library: 'Published content' }[mode];
   const ICON = { review: 'scope', publish: 'mega', library: 'book' }[mode];
+  const oldest = all.length ? rel(Math.min(...all.map((d) => d.time))) : '—';
   return (
-    <Card title={T} icon={ICON}
-      right={
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Icon n="search" className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search queue" className={`${inputCls} w-44 pl-8`} />
+    <>
+      <MiniStats items={[
+        [mode === 'library' ? 'Live items' : 'Waiting', all.length, ICON],
+        ['Authors', new Set(all.map((d) => d.by)).size, 'users'],
+        ['Oldest item', oldest, 'clock'],
+      ]} />
+      <Card title={T} icon={ICON}
+        right={
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Icon n="search" className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search queue" className={`${inputCls} w-44 pl-8`} />
+            </div>
+            <span className="text-xs text-neutral-500">{list.length} item(s)</span>
           </div>
-          <span className="text-xs text-neutral-500">{list.length} item(s)</span>
-        </div>
-      }>
-      {list.length ? (
-        <ul className="space-y-3">
-          {list.map((d) => (
-            <li key={d.id} className="rounded-lg border border-neutral-200 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-semibold text-ink">{d.title}</p>
-                <Badge s={d.status} />
-              </div>
-              <p className="text-xs text-neutral-500">by {d.by} · {when(d.time)}</p>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{d.body}</p>
-              {d.media?.length > 0 && (
-                <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                  {d.media.map((m) => <MediaCard key={m.id} m={m} />)}
+        }>
+        {list.length ? (
+          <ul className="space-y-3">
+            {list.map((d) => (
+              <li key={d.id} className="rounded-lg border border-neutral-200 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold text-ink">{d.title}</p>
+                  <Badge s={d.status} />
                 </div>
-              )}
-              {mode === 'review' && (
-                <div className="mt-3 space-y-2">
-                  <textarea rows={2} aria-label="Reviewer comment" value={cm[d.id] || ''}
-                    onChange={(e) => setCm({ ...cm, [d.id]: e.target.value })}
-                    placeholder="Comment (required to request changes)" className={inputCls} />
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => set(d, { status: 'approved', comment: '' }, 'Approved')} className={btn}>
-                      <Icon n="check" className="h-4 w-4" />Scientifically accurate
+                <p className="text-xs text-neutral-500">by {d.by} · {when(d.time)}</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{d.body}</p>
+                {d.media?.length > 0 && (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                    {d.media.map((m) => <MediaCard key={m.id} m={m} />)}
+                  </div>
+                )}
+                {mode === 'review' && (
+                  <div className="mt-3 space-y-2">
+                    <textarea rows={2} aria-label="Reviewer comment" value={cm[d.id] || ''}
+                      onChange={(e) => setCm({ ...cm, [d.id]: e.target.value })}
+                      placeholder="Comment (required to request changes)" className={inputCls} />
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => set(d, { status: 'approved', comment: '' }, 'Approved')} className={btn}>
+                        <Icon n="check" className="h-4 w-4" />Scientifically accurate
+                      </button>
+                      <button type="button" disabled={!(cm[d.id] || '').trim()}
+                        onClick={() => set(d, { status: 'changes', comment: cm[d.id].trim() }, 'Requested changes on')} className={btnGhost}>
+                        <Icon n="alert" className="h-3.5 w-3.5" />Request changes
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {mode === 'publish' && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => set(d, { status: 'published' }, 'Published')} className={btn}>
+                      <Icon n="mega" className="h-4 w-4" />Publish
                     </button>
-                    <button type="button" disabled={!(cm[d.id] || '').trim()}
-                      onClick={() => set(d, { status: 'changes', comment: cm[d.id].trim() }, 'Requested changes on')} className={btnGhost}>
-                      <Icon n="alert" className="h-3.5 w-3.5" />Request changes
+                    <button type="button" onClick={() => set(d, { status: 'review' }, 'Sent back to review')} className={btnGhost}>Send back</button>
+                  </div>
+                )}
+                {mode === 'library' && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => set(d, { status: 'approved' }, 'Unpublished')} className={btnGhost}>Unpublish</button>
+                    <button type="button" onClick={() => del(d)} className={btnGhost}>
+                      <Icon n="trash" className="h-3.5 w-3.5" />Delete
                     </button>
                   </div>
-                </div>
-              )}
-              {mode === 'publish' && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" onClick={() => set(d, { status: 'published' }, 'Published')} className={btn}>
-                    <Icon n="mega" className="h-4 w-4" />Publish
-                  </button>
-                  <button type="button" onClick={() => set(d, { status: 'review' }, 'Sent back to review')} className={btnGhost}>Send back</button>
-                </div>
-              )}
-              {mode === 'library' && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" onClick={() => set(d, { status: 'approved' }, 'Unpublished')} className={btnGhost}>Unpublish</button>
-                  <button type="button" onClick={() => del(d)} className={btnGhost}>
-                    <Icon n="trash" className="h-3.5 w-3.5" />Delete
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : <Empty icon={ICON}>{mode === 'review' ? 'Nothing waiting for review.' : mode === 'publish' ? 'No approved content waiting.' : 'Nothing published yet.'}</Empty>}
-    </Card>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : <Empty icon={ICON}>{mode === 'review' ? 'Nothing waiting for review.' : mode === 'publish' ? 'No approved content waiting.' : 'Nothing published yet.'}</Empty>}
+      </Card>
+    </>
   );
 }
 
@@ -1025,7 +1281,34 @@ function ResearchData({ me }) {
   };
   return (
     <>
-      <Card title="Upload research data" icon="folder">
+      <MiniStats items={[
+        ['Datasets', list.length, 'folder'],
+        ['Attached files', list.reduce((a, d) => a + (d.media?.length || 0), 0), 'image'],
+      ]} />
+      <Card title="Uploaded datasets" icon="folder"
+        right={<span className="text-xs text-neutral-500">{list.length} item(s)</span>}>
+        {list.length ? (
+          <ul className="space-y-3">
+            {list.map((d) => (
+              <li key={d.id} className="rounded-lg border border-neutral-200 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold text-ink">{d.title}</p>
+                  <span className={`${chip} bg-neutral-100 text-neutral-700`}>{pretty(d.topic)}</span>
+                </div>
+                <p className="text-xs text-neutral-500">{d.date} · by {d.by}</p>
+                {d.notes && <p className="mt-2 text-sm text-neutral-700">{d.notes}</p>}
+                {d.media?.length > 0 && (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                    {d.media.map((m) => <MediaCard key={m.id} m={m} />)}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : <Empty icon="folder">No datasets yet. Upload your first one below.</Empty>}
+      </Card>
+
+      <Card title="Upload research data" icon="upload">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm font-semibold text-ink sm:col-span-2">Title
             <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} className={`${inputCls} mt-1 font-normal`} />
@@ -1050,32 +1333,12 @@ function ResearchData({ me }) {
             </div>
           )}
         </div>
-        <button type="button" onClick={save} disabled={!f.title.trim()} className={`${btn} mt-4`}>
-          <Icon n="upload" className="h-4 w-4" />Save dataset
-        </button>
-      </Card>
-
-      <Card title="Uploaded datasets" icon="folder"
-        right={<span className="text-xs text-neutral-500">{list.length} item(s)</span>}>
-        {list.length ? (
-          <ul className="space-y-3">
-            {list.map((d) => (
-              <li key={d.id} className="rounded-lg border border-neutral-200 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-semibold text-ink">{d.title}</p>
-                  <span className={`${chip} bg-neutral-100 text-neutral-700`}>{pretty(d.topic)}</span>
-                </div>
-                <p className="text-xs text-neutral-500">{d.date} · by {d.by}</p>
-                {d.notes && <p className="mt-2 text-sm text-neutral-700">{d.notes}</p>}
-                {d.media?.length > 0 && (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                    {d.media.map((m) => <MediaCard key={m.id} m={m} />)}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : <Empty icon="folder">No datasets yet. Upload your first one above.</Empty>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={() => setF(blankData())} className={btnGhost}>Clear</button>
+          <button type="button" onClick={save} disabled={!f.title.trim()} className={btn}>
+            <Icon n="upload" className="h-4 w-4" />Save dataset
+          </button>
+        </div>
       </Card>
     </>
   );
@@ -1101,7 +1364,7 @@ function Analytics() {
         <Line data={MONTHLY} height={220} />
       </Card>
       <div className="grid gap-5 lg:grid-cols-2">
-        <Card title="Most read topics" icon="star"><Bars data={TOPICS} /></Card>
+        <Card title="Most read topics" icon="star"><VBars data={TOPICS.map(([l, v]) => [l.split(' ')[0], v])} /></Card>
         <Card title="Traffic sources" icon="globe">
           <Donut label="visits" data={[['Organic', 480], ['Direct', 320], ['Social', 210], ['Referral', 120]]} />
         </Card>
@@ -1122,57 +1385,64 @@ function Users({ me }) {
     .filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(q.toLowerCase()))
     .filter((u) => roleF === 'all' || u.role === roleF);
   return (
-    <Card title="Users & roles" icon="users"
-      right={
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Icon n="search" className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className={`${inputCls} w-48 pl-8`} aria-label="Search users" />
+    <>
+      <MiniStats items={[
+        ['Total users', users.length, 'users'],
+        ['Active', users.filter((u) => u.active).length, 'check'],
+        ['Suspended', users.filter((u) => !u.active).length, 'alert'],
+      ]} />
+      <Card title="Users & roles" icon="users"
+        right={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Icon n="search" className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className={`${inputCls} w-48 pl-8`} aria-label="Search users" />
+            </div>
+            <select value={roleF} onChange={(e) => setRoleF(e.target.value)} className={`${inputCls} w-40`} aria-label="Filter role">
+              <option value="all">All roles</option>
+              {Object.entries(ROLE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
           </div>
-          <select value={roleF} onChange={(e) => setRoleF(e.target.value)} className={`${inputCls} w-40`} aria-label="Filter role">
-            <option value="all">All roles</option>
-            {Object.entries(ROLE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
-        </div>
-      }>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="text-xs uppercase tracking-wider text-neutral-500">
-            <tr>
-              <th className="py-2">User</th>
-              <th>Role</th>
-              <th>Joined</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((u) => (
-              <tr key={u.email} className="border-t border-neutral-200">
-                <td className="py-2.5">
-                  <p className="font-semibold text-ink">{u.name}</p>
-                  <p className="text-xs text-neutral-500">{u.email}</p>
-                </td>
-                <td>
-                  <select aria-label={`Role for ${u.name}`} value={u.role}
-                    onChange={(e) => upd(u.email, { role: e.target.value }, `Role → ${e.target.value} for`)}
-                    className={`${inputCls} w-44`}>
-                    {Object.entries(ROLE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                  </select>
-                </td>
-                <td className="text-xs text-neutral-500">{new Date(u.joined || Date.now()).toLocaleDateString('en-IN')}</td>
-                <td>
-                  <button type="button" onClick={() => upd(u.email, { active: !u.active }, u.active ? 'Suspended' : 'Reactivated')}
-                    className={`${chip} ${u.active ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-800'} ${focus}`}>
-                    {u.active ? 'Active' : 'Suspended'}
-                  </button>
-                </td>
+        }>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead className="text-xs uppercase tracking-wider text-neutral-500">
+              <tr>
+                <th className="py-2">User</th>
+                <th>Role</th>
+                <th>Joined</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="mt-3 text-xs text-neutral-500">Demo list. In the live system this reads from your user database and approves staff-role requests.</p>
-    </Card>
+            </thead>
+            <tbody>
+              {list.map((u) => (
+                <tr key={u.email} className="border-t border-neutral-200">
+                  <td className="py-2.5">
+                    <p className="font-semibold text-ink">{u.name}</p>
+                    <p className="text-xs text-neutral-500">{u.email}</p>
+                  </td>
+                  <td>
+                    <select aria-label={`Role for ${u.name}`} value={u.role}
+                      onChange={(e) => upd(u.email, { role: e.target.value }, `Role → ${e.target.value} for`)}
+                      className={`${inputCls} w-44`}>
+                      {Object.entries(ROLE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                    </select>
+                  </td>
+                  <td className="text-xs text-neutral-500">{new Date(u.joined || Date.now()).toLocaleDateString('en-IN')}</td>
+                  <td>
+                    <button type="button" onClick={() => upd(u.email, { active: !u.active }, u.active ? 'Suspended' : 'Reactivated')}
+                      className={`${chip} ${u.active ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-800'} ${focus}`}>
+                      {u.active ? 'Active' : 'Suspended'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-xs text-neutral-500">Demo list. In the live system this reads from your user database and approves staff-role requests.</p>
+      </Card>
+    </>
   );
 }
 
@@ -1184,37 +1454,44 @@ function AllContent({ me }) {
   const [q, setQ] = useState('');
   const list = drafts.filter((d) => (d.title + d.by).toLowerCase().includes(q.toLowerCase()));
   return (
-    <Card title="All content" icon="folder"
-      right={
-        <div className="relative">
-          <Icon n="search" className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search content" className={`${inputCls} w-44 pl-8`} />
-        </div>
-      }>
-      {list.length ? (
-        <ul className="space-y-2">
-          {list.map((d) => (
-            <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200 p-3">
-              <div className="min-w-0">
-                <p className="font-semibold text-ink">{d.title}</p>
-                <p className="text-xs text-neutral-500">{d.by} · {when(d.time)}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <select aria-label={`Status for ${d.title}`} value={d.status}
-                  onChange={(e) => { setDrafts((l) => l.map((x) => (x.id === d.id ? { ...x, status: e.target.value } : x))); audit(me.email, `Set “${d.title}” to ${e.target.value}`); }}
-                  className={`${inputCls} w-36`}>
-                  {Object.entries(ST).map(([k, v]) => <option key={k} value={k}>{v[0]}</option>)}
-                </select>
-                <button type="button" aria-label={`Delete ${d.title}`}
-                  onClick={() => { setDrafts((l) => l.filter((x) => x.id !== d.id)); audit(me.email, `Deleted “${d.title}”`); }} className={btnGhost}>
-                  <Icon n="trash" className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : <Empty icon="folder">No content yet.</Empty>}
-    </Card>
+    <>
+      <MiniStats items={[
+        ['All items', drafts.length, 'folder'],
+        ['In review', drafts.filter((d) => d.status === 'review').length, 'scope'],
+        ['Published', drafts.filter((d) => d.status === 'published').length, 'check'],
+      ]} />
+      <Card title="All content" icon="folder"
+        right={
+          <div className="relative">
+            <Icon n="search" className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search content" className={`${inputCls} w-44 pl-8`} />
+          </div>
+        }>
+        {list.length ? (
+          <ul className="space-y-2">
+            {list.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200 p-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-ink">{d.title}</p>
+                  <p className="text-xs text-neutral-500">{d.by} · {when(d.time)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select aria-label={`Status for ${d.title}`} value={d.status}
+                    onChange={(e) => { setDrafts((l) => l.map((x) => (x.id === d.id ? { ...x, status: e.target.value } : x))); audit(me.email, `Set “${d.title}” to ${e.target.value}`); }}
+                    className={`${inputCls} w-36`}>
+                    {Object.entries(ST).map(([k, v]) => <option key={k} value={k}>{v[0]}</option>)}
+                  </select>
+                  <button type="button" aria-label={`Delete ${d.title}`}
+                    onClick={() => { setDrafts((l) => l.filter((x) => x.id !== d.id)); audit(me.email, `Deleted “${d.title}”`); }} className={btnGhost}>
+                    <Icon n="trash" className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : <Empty icon="folder">No content yet.</Empty>}
+      </Card>
+    </>
   );
 }
 
@@ -1232,6 +1509,10 @@ function System({ me }) {
   };
   return (
     <>
+      <MiniStats items={[
+        ['Settings on', Object.values(fl).filter(Boolean).length, 'cog'],
+        ['Audit entries', log.length, 'shield'],
+      ]} />
       <Card title="Platform settings" icon="cog">
         <ul className="space-y-3">
           {Object.entries(LBL).map(([k, l]) => (
@@ -1274,10 +1555,10 @@ function Profile({ me, role, logout }) {
   const wipe = () => {
     try {
       Object.keys(localStorage)
-        .filter((k) => /^polaris_(note|react)_|^polaris_interest$|^polaris_bookmarks$/.test(k))
+        .filter((k) => /^polaris_(note|react)_|^polaris_interest$/.test(k))
         .forEach((k) => localStorage.removeItem(k));
     } catch { /* blocked */ }
-    flash('Your notes, reactions, bookmarks and interests were deleted from this device.');
+    flash('Your notes, reactions and interests were deleted from this device.');
   };
   return (
     <>
@@ -1313,7 +1594,7 @@ function Profile({ me, role, logout }) {
         </div>
       </Card>
       <Card title="Your data" icon="shield">
-        <p className="text-sm text-neutral-700">Notes, reactions, bookmarks and interests are stored on this device. You can delete them at any time.</p>
+        <p className="text-sm text-neutral-700">Notes, reactions and interests are stored on this device. You can delete them at any time.</p>
         <button type="button" onClick={wipe} className={`${btnGhost} mt-3`}>
           <Icon n="trash" className="h-3.5 w-3.5" />Delete my saved data
         </button>
@@ -1363,10 +1644,9 @@ export default function Dashboard() {
   const body = {
     overview: <Overview {...P} />,
     explore: <Explore />,
-    notes: <Notes />,
+    notes: <Notes {...P} />,
     questions: <Questions {...P} />,
     interests: <Interests />,
-    bookmarks: <Bookmarks />,
     drafts: <Drafts {...P} />,
     review: <Queue mode="review" {...P} />,
     publish: <Queue mode="publish" {...P} />,
